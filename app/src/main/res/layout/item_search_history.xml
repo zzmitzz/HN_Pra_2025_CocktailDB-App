@@ -29,8 +29,8 @@
         android:background="?android:attr/selectableItemBackgroundBorderless"
         android:contentDescription="Remove from history"
         android:src="@drawable/ic_close"
-        android:tint="@color/black"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@color/black" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

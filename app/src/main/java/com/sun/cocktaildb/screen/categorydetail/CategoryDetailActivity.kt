@@ -112,6 +112,7 @@ class CategoryDetailActivity :
 
     override fun onCocktailClicked(cocktail: Cocktail) {
         val intent = CocktailActivity.newIntent(this, cocktail.id)
+        startActivity(intent)
     }
 
     override fun onFavoriteClicked(

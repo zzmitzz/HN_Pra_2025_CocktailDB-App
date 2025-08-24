@@ -2,24 +2,24 @@ package com.sun.cocktaildb.screen.cocktaildetail
 
 import android.content.Context
 import android.content.Intent
-import android.os.Bundle
 import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.sun.cocktaildb.R
 import com.sun.cocktaildb.data.model.Cocktail
 import com.sun.cocktaildb.data.repository.impl.CocktailRepositoryImpl
 import com.sun.cocktaildb.databinding.ActivityDetailBinding
-import com.sun.cocktaildb.screen.cocktaildetail.adapter.IngredientsAdapter
+import com.sun.cocktaildb.screen.cocktaildetail.adapter.IngredientAdapter
 import com.sun.cocktaildb.utils.ImageLoader
 import com.sun.cocktaildb.utils.base.BaseActivity
 import com.sun.cocktaildb.utils.dialog.LoadingDialog
+import com.sun.cocktaildb.utils.Constants
 
 class CocktailActivity :
     BaseActivity(),
     CocktailContract.View {
     private lateinit var binding: ActivityDetailBinding
     private lateinit var presenter: CocktailPresenter
-    private lateinit var ingredientsAdapter: IngredientsAdapter
+    private lateinit var ingredientAdapter: IngredientAdapter
 
     private val loadingDialog by lazy {
         LoadingDialog(this)
@@ -60,10 +60,10 @@ class CocktailActivity :
     }
 
     private fun setupRecyclerView() {
-        ingredientsAdapter = IngredientsAdapter()
+        ingredientAdapter = IngredientAdapter()
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(this@CocktailActivity)
-            adapter = ingredientsAdapter
+            adapter = ingredientAdapter
         }
     }
 
@@ -80,14 +80,13 @@ class CocktailActivity :
 
         // Top share button (in image overlay)
         binding.ivShare.setOnClickListener {
-            // This will be updated when cocktail is loaded
         }
     }
 
     override fun showCocktailDetail(cocktail: Cocktail) {
         binding.apply {
             // Set cocktail image
-            if (cocktail.imageUrl.isNotEmpty() && cocktail.imageUrl != "https://example.com/placeholder.jpg") {
+            if (cocktail.imageUrl.isNotEmpty() && cocktail.imageUrl != Constants.PLACEHOLDER_IMAGE_URL) {
                 ImageLoader.loadImage(ivCocktail, cocktail.imageUrl, R.drawable.placeholder)
             } else {
                 ivCocktail.setImageResource(R.drawable.placeholder)
@@ -98,7 +97,7 @@ class CocktailActivity :
 
             // Set tags (category and alcoholic status)
             val tags = mutableListOf<String>()
-            if (cocktail.category.isNotEmpty() && cocktail.category != "Unknown") {
+            if (cocktail.category.isNotEmpty() && cocktail.category != Constants.DEFAULT_CATEGORY) {
                 tags.add(cocktail.category)
             }
 
@@ -113,7 +112,7 @@ class CocktailActivity :
             tvCocktailName.text = cocktail.name
 
             // Set ingredients
-            ingredientsAdapter.updateIngredients(
+            ingredientAdapter.updateIngredients(
                 cocktail.ingredients.filter {
                     !it.contains("null", ignoreCase = true)
                 },

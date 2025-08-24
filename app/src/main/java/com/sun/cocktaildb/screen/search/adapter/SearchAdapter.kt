@@ -1,21 +1,44 @@
 package com.sun.cocktaildb.screen.search.adapter
 
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.BackgroundColorSpan
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.sun.cocktaildb.R
 import com.sun.cocktaildb.data.model.Cocktail
 import com.sun.cocktaildb.databinding.ItemSearchCocktailBinding
 import com.sun.cocktaildb.utils.ImageLoader
+import com.sun.cocktaildb.utils.Constants
 
 class SearchAdapter(
-    private val onCocktailClicked: (Cocktail) -> Unit
+    private val onCocktailClicked: (Cocktail) -> Unit,
+    private val onFavoriteClickListener: (Cocktail, Boolean) -> Unit
 ) : RecyclerView.Adapter<SearchAdapter.SearchViewHolder>() {
 
-    private var cocktails: List<Cocktail> = emptyList()
+    private var cocktails: MutableList<Cocktail> = mutableListOf()
+    private var currentSearchQuery: String = ""
 
-    fun updateCocktails(newCocktails: List<Cocktail>) {
-        cocktails = newCocktails
+    fun updateCocktailFavoriteStatus(cocktailId: String, isFavorite: Boolean) {
+        val index = cocktails.indexOfFirst { it.id == cocktailId }
+        if (index != -1) {
+            val updatedCocktail = cocktails[index].copy(isFavorite = isFavorite)
+            cocktails[index] = updatedCocktail
+            notifyItemChanged(index)
+        }
+    }
+    
+    fun getCurrentCocktails(): List<Cocktail> {
+        return cocktails.toList()
+    }
+
+    fun updateCocktails(newCocktails: List<Cocktail>, searchQuery: String = "") {
+        cocktails.clear()
+        cocktails.addAll(newCocktails)
+        currentSearchQuery = searchQuery
         notifyDataSetChanged()
     }
 
@@ -40,47 +63,74 @@ class SearchAdapter(
 
         init {
             binding.root.setOnClickListener {
-                val position = adapterPosition
+                val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     onCocktailClicked(cocktails[position])
+                }
+            }
+
+            binding.ivFavorite.setOnClickListener {
+                val position = bindingAdapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    val cocktail = cocktails[position]
+                    val newFavoriteStatus = !cocktail.isFavorite
+                    onFavoriteClickListener(cocktail, newFavoriteStatus)
                 }
             }
         }
 
         fun bind(cocktail: Cocktail) {
-            binding.apply {
-                tvCocktailName.text = cocktail.name
-
-                // Display ingredients in the format shown in the image
-                val ingredientsText = getIngredientsText(cocktail)
-                tvCocktailDescription.text = ingredientsText
-
-                // Load image using ImageLoader utility
-                val imageUrl = cocktail.imageUrl
-                if (imageUrl.isNotEmpty() && imageUrl != "https://example.com/placeholder.jpg") {
-                    ImageLoader.loadImage(ivCocktailImage, imageUrl, R.drawable.placeholder)
-                } else {
-                    ivCocktailImage.setImageResource(R.drawable.placeholder)
-                }
-            }
-        }
-
-        // Extract complex logic into separate method for better readability and testability
-        private fun getIngredientsText(cocktail: Cocktail): String {
-            return if (cocktail.ingredients.isNotEmpty() &&
-                cocktail.ingredients.first() != "Ingredients not available") {
-                // Show first ingredient with its measure if available
-                val firstIngredient = cocktail.ingredients.first()
-                if (firstIngredient.contains(" ")) {
-                    // If ingredient already has measure, use as is
-                    firstIngredient
-                } else {
-                    // Add default measure
-                    "1/2 oz $firstIngredient"
-                }
+            // Highlight matching characters in cocktail name
+            binding.tvCocktailName.text = highlightMatchingText(cocktail.name, currentSearchQuery)
+            
+            // Show category instead of description
+            binding.tvCocktailDescription.text = cocktail.category
+            
+            // Load cocktail image
+            if (!cocktail.imageUrl.isNullOrEmpty()) {
+                ImageLoader.loadImage(
+                    binding.ivCocktailImage,
+                    cocktail.imageUrl,
+                    R.drawable.placeholder
+                )
             } else {
-                "1/2 oz Ingredients not available"
+                binding.ivCocktailImage.setImageResource(R.drawable.placeholder)
             }
+
+            // Set favorite button state
+            binding.ivFavorite.isSelected = cocktail.isFavorite
+            binding.ivFavorite.setImageResource(
+                if (cocktail.isFavorite) R.drawable.ic_favorite_filled_black_24dp
+                else R.drawable.ic_favorite_border_black_24dp
+            )
+        }
+        
+        private fun highlightMatchingText(text: String, query: String): SpannableString {
+            val spannableString = SpannableString(text)
+            if (query.isNotEmpty()) {
+                val textLower = text.lowercase()
+                val queryLower = query.lowercase()
+                var startIndex = 0
+                
+                // Find all matches and sort by position (left to right priority)
+                val matches = mutableListOf<Pair<Int, Int>>()
+                while (true) {
+                    val index = textLower.indexOf(queryLower, startIndex)
+                    if (index == -1) break
+                    matches.add(Pair(index, index + query.length))
+                    startIndex = index + 1
+                }
+                
+                matches.forEach { (start, end) ->
+                    spannableString.setSpan(
+                        BackgroundColorSpan(ContextCompat.getColor(binding.root.context, R.color.yellow_highlight)),
+                        start,
+                        end,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+            }
+            return spannableString
         }
     }
 }

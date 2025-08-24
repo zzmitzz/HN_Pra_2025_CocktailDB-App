@@ -6,8 +6,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.sun.cocktaildb.databinding.ItemSearchHistoryBinding
 
 class HistoryAdapter(
-    private val onHistoryItemClick: (String) -> Unit,
-    private val onHistoryItemRemove: (String) -> Unit
+    private val onHistoryItemClickListener: (String) -> Unit,
+    private val onHistoryItemDeleteClickListener: (String) -> Unit
 ) : RecyclerView.Adapter<HistoryAdapter.HistoryViewHolder>() {
 
     private var historyItems = listOf<String>()
@@ -41,12 +41,12 @@ class HistoryAdapter(
             
             // Click to reuse search query
             binding.root.setOnClickListener {
-                onHistoryItemClick(query)
+                onHistoryItemClickListener(query)
             }
             
             // Click to remove from history
             binding.btnRemoveHistory.setOnClickListener {
-                onHistoryItemRemove(query)
+                onHistoryItemDeleteClickListener(query)
             }
         }
     }

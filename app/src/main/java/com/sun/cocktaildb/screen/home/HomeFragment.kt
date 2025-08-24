@@ -17,12 +17,14 @@ import com.sun.cocktaildb.screen.cocktaildetail.CocktailActivity
 import com.sun.cocktaildb.screen.home.adapter.CategoryAdapter
 import com.sun.cocktaildb.screen.home.adapter.PopularCocktailAdapter
 import com.sun.cocktaildb.utils.FavoriteManager
+import com.sun.cocktaildb.utils.FavoriteSyncManager
 import com.sun.cocktaildb.utils.base.BaseFragment
 import com.sun.cocktaildb.utils.dialog.LoadingDialog
 
 class HomeFragment :
     BaseFragment(),
-    HomeView {
+    HomeView,
+    FavoriteSyncManager.FavoriteUpdateListener {
     private val binding: FragmentHomeBinding by lazy {
         FragmentHomeBinding.inflate(layoutInflater)
     }
@@ -43,6 +45,8 @@ class HomeFragment :
     override fun initView() {
         setupPresenter()
         setupRecyclerViews()
+        // Register for favorite updates
+        FavoriteSyncManager.registerListener(this)
     }
 
     private fun setupPresenter() {
@@ -80,6 +84,8 @@ class HomeFragment :
     override fun onResume() {
         super.onResume()
         presenter.onStart()
+        // Refresh popular cocktails to sync with changes from other screens
+        refreshPopularCocktailsFromOtherScreens()
     }
 
     override fun onPause() {
@@ -89,6 +95,31 @@ class HomeFragment :
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // Unregister from favorite updates
+        FavoriteSyncManager.unregisterListener(this)
+    }
+
+    // FavoriteSyncManager.FavoriteUpdateListener implementations
+    override fun onFavoriteUpdated(cocktailId: String, isFavorite: Boolean) {
+        // Update the specific cocktail's favorite status in the adapter
+        popularCocktailAdapter.updateCocktailFavoriteStatus(cocktailId, isFavorite)
+    }
+
+    override fun onFavoritesRefreshed() {
+        // Refresh all popular cocktails with current favorite status
+        refreshPopularCocktailsFromOtherScreens()
+    }
+
+    private fun refreshPopularCocktailsFromOtherScreens() {
+        // Get current popular cocktails and update their favorite status
+        val currentCocktails = popularCocktailAdapter.getCurrentCocktails()
+        if (currentCocktails.isNotEmpty()) {
+            // Update favorite status for each cocktail based on FavoriteManager
+            currentCocktails.forEach { cocktail ->
+                val isFavorite = FavoriteSyncManager.isFavorite(cocktail.id)
+                popularCocktailAdapter.updateCocktailFavoriteStatus(cocktail.id, isFavorite)
+            }
+        }
     }
 
     // HomeView implementations
@@ -127,21 +158,29 @@ class HomeFragment :
         cocktail: Cocktail,
         isFavorite: Boolean,
     ) {
+        // Show toast message for user feedback
         if (isFavorite) {
             Toast.makeText(context, getString(R.string.added_to_favorites, cocktail.name), Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(context, getString(R.string.removed_from_favorites, cocktail.name), Toast.LENGTH_SHORT).show()
         }
 
-        // Update the cocktail favorite status in the adapter
+        // Update the cocktail favorite status in the adapter immediately for UI responsiveness
         popularCocktailAdapter.updateCocktailFavoriteStatus(cocktail.id, isFavorite)
+
+        // Use FavoriteSyncManager to update and notify all screens
+        // This will:
+        // 1. Update local FavoriteManager
+        // 2. Save to Firebase
+        // 3. Notify Search, Favorite, and Detail screens
+        FavoriteSyncManager.updateFavorite(cocktail, isFavorite)
 
         // Update favorites count in bottom navigation if available
         updateFavoritesCount()
     }
 
     private fun updateFavoritesCount() {
-        val favoritesCount = FavoriteManager.getFavoriteCocktails().size
+        val favoritesCount = FavoriteSyncManager.getFavoriteCocktails().size
         // TODO: Update badge count in bottom navigation if supported
     }
 

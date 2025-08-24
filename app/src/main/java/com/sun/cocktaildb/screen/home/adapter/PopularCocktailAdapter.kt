@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.sun.cocktaildb.R
 import com.sun.cocktaildb.data.model.Cocktail
 import com.sun.cocktaildb.utils.ImageLoader
+import com.sun.cocktaildb.utils.Constants
 
 class PopularCocktailAdapter(
     private val onCocktailClickListener: (Cocktail) -> Unit,
@@ -30,6 +31,10 @@ class PopularCocktailAdapter(
             cocktails[index] = updatedCocktail
             notifyItemChanged(index)
         }
+    }
+    
+    fun getCurrentCocktails(): List<Cocktail> {
+        return cocktails.toList()
     }
     
     fun refreshFavorites() {
@@ -70,7 +75,7 @@ class PopularCocktailAdapter(
 
             // Load image using Android native ImageLoader utility
             val imageUrl = cocktail.imageUrl
-            if (imageUrl.isNotEmpty() && imageUrl != "https://example.com/placeholder.jpg") {
+                            if (imageUrl.isNotEmpty() && imageUrl != Constants.PLACEHOLDER_IMAGE_URL) {
                 ImageLoader.loadImage(ivCocktail, imageUrl, R.drawable.placeholder)
             } else {
                 ivCocktail.setImageResource(R.drawable.placeholder)

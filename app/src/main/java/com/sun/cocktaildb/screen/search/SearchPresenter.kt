@@ -5,6 +5,7 @@ import android.os.Looper
 import com.sun.cocktaildb.data.model.Cocktail
 import com.sun.cocktaildb.data.repository.remote.CocktailRepository
 import com.sun.cocktaildb.utils.base.BasePresenter
+import com.sun.cocktaildb.utils.FavoriteManager
 import java.util.concurrent.Executors
 
 class SearchPresenter(
@@ -21,13 +22,6 @@ class SearchPresenter(
     // Filter state
     private var selectedAlcoholicFilter: String? = null
     private var selectedIngredientFilter: String? = null
-
-    // Cache for performance (LRU with max size)
-    private val CACHE_MAX_SIZE = 100
-    private val cachedResults =
-        object : LinkedHashMap<String, List<Cocktail>>(CACHE_MAX_SIZE, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Cocktail>>?): Boolean = size > CACHE_MAX_SIZE
-        }
 
     // Search history
     private val searchHistory = mutableListOf<String>()
@@ -63,23 +57,6 @@ class SearchPresenter(
             return
         }
 
-        // Check cache first
-        val cacheKey = generateCacheKey(query.trim(), searchType, selectedAlcoholicFilter, selectedIngredientFilter)
-        cachedResults[cacheKey]?.let { cached ->
-            view?.hideHistory()
-            view?.hideLoading()
-            if (cached.isNotEmpty()) {
-                view?.showSearchResults(cached)
-            } else {
-                view?.showNoResults()
-            }
-            return
-        }
-
-        // Add to search history for meaningful searches
-        if (query.trim().length >= 2) {
-            addToHistory(query.trim())
-        }
 
         view?.hideHistory()
         view?.showLoading()
@@ -91,8 +68,9 @@ class SearchPresenter(
                         SearchType.NAME -> {
                             if (hasQuery) {
                                 val nameResults = cocktailRepository.searchCocktailsByName(query.trim())
-                                if (nameResults.isEmpty() && query.trim().length == 1) {
-                                    cocktailRepository.searchCocktailsByFirstLetter(query.trim())
+                                // If no results from name search, try first letter search
+                                if (nameResults.isEmpty()) {
+                                    cocktailRepository.searchCocktailsByFirstLetter(query.trim().first().toString())
                                 } else {
                                     nameResults
                                 }
@@ -117,25 +95,112 @@ class SearchPresenter(
                             }
                         }
                     }
-				
-                // Apply filters if selected
+
+                // Apply filters if any
                 results = applyFilters(results)
-				
-                // Cache the results
-                cachedResults[cacheKey] = results
-				
-                mainHandler.post {
-                    view?.hideLoading()
-                    if (results.isNotEmpty()) {
-                        view?.showSearchResults(results)
-                    } else {
-                        view?.showNoResults()
-                    }
-                }
+
+                // Sort results by search priority (left to right matching)
+                results = sortResultsBySearchPriority(results, query.trim())
+
+                // Update favorite status from Firebase
+                updateFavoriteStatus(results)
+
             } catch (e: Exception) {
                 mainHandler.post {
                     view?.hideLoading()
                     view?.showError("Search failed: ${e.message}")
+                }
+            }
+        }
+    }
+
+    private fun applyFilters(results: List<Cocktail>): List<Cocktail> {
+        var filteredResults = results
+
+        // Apply alcoholic filter
+        selectedAlcoholicFilter?.let { filter ->
+            if (filter != "All") {
+                filteredResults = filteredResults.filter { cocktail ->
+                    cocktail.description.contains(filter, ignoreCase = true)
+                }
+            }
+        }
+
+        // Apply ingredient filter
+        selectedIngredientFilter?.let { filter ->
+            if (filter != "All") {
+                filteredResults = filteredResults.filter { cocktail ->
+                    cocktail.ingredients.any { ingredient ->
+                        ingredient.contains(filter, ignoreCase = true)
+                    }
+                }
+            }
+        }
+
+        return filteredResults
+    }
+
+    private fun sortResultsBySearchPriority(results: List<Cocktail>, query: String): List<Cocktail> {
+        if (query.isEmpty()) return results
+        
+        return results.sortedBy { cocktail ->
+            val nameLower = cocktail.name.lowercase()
+            val queryLower = query.lowercase()
+            
+            // Find the first occurrence of the query in the cocktail name
+            val firstIndex = nameLower.indexOf(queryLower)
+            
+            // If not found, put at the end
+            if (firstIndex == -1) {
+                Int.MAX_VALUE
+            } else {
+                // Return the position (lower position = higher priority)
+                firstIndex
+            }
+        }
+    }
+
+    private fun updateFavoriteStatus(results: List<Cocktail>) {
+        cocktailRepository.getFavouriteCocktails { result ->
+            if (result.isSuccess) {
+                val favoriteIds = result.getOrNull()?.map { it.id } ?: emptyList()
+                
+                // Update cocktails with favorite status from Firebase
+                val updatedResults = results.map { cocktail ->
+                    val isFavorite = favoriteIds.contains(cocktail.id)
+                    cocktail.copy(isFavorite = isFavorite)
+                }
+                
+                // Update local FavoriteManager for consistency
+                updatedResults.forEach { cocktail ->
+                    if (cocktail.isFavorite) {
+                        FavoriteManager.addToFavorites(cocktail)
+                    } else {
+                        FavoriteManager.removeFromFavorites(cocktail)
+                    }
+                }
+
+                mainHandler.post {
+                    view?.hideLoading()
+                    if (updatedResults.isNotEmpty()) {
+                        view?.showSearchResults(updatedResults)
+                    } else {
+                        view?.showNoResults()
+                    }
+                }
+            } else {
+                // Fallback to local FavoriteManager if Firebase fails
+                val updatedResults = results.map { cocktail ->
+                    cocktail.copy(isFavorite = FavoriteManager.isFavorite(cocktail.id))
+                }
+                
+                mainHandler.post {
+                    view?.hideLoading()
+                    if (updatedResults.isNotEmpty()) {
+                        view?.showSearchResults(updatedResults)
+                    } else {
+                        view?.showNoResults()
+                    }
                 }
             }
         }
@@ -162,18 +227,16 @@ class SearchPresenter(
     fun setAlcoholicFilter(filter: String?) {
         selectedAlcoholicFilter = filter
         selectedIngredientFilter = null
-        searchCocktails(currentQuery, currentSearchType)
     }
 
     // Set ingredient filter
     fun setIngredientFilter(filter: String?) {
         selectedIngredientFilter = filter
         selectedAlcoholicFilter = null
-        searchCocktails(currentQuery, currentSearchType)
     }
 
     // Add query to search history
-    private fun addToHistory(query: String) {
+    fun addToHistory(query: String) {
         searchHistory.remove(query)
         searchHistory.add(0, query)
         if (searchHistory.size > maxHistorySize) {
@@ -190,42 +253,28 @@ class SearchPresenter(
     // Get search history
     fun getSearchHistory(): List<String> = searchHistory.toList()
 
-    // Generate cache key for results
-    private fun generateCacheKey(
-        query: String,
-        searchType: SearchType,
-        alcoholicFilter: String?,
-        ingredientFilter: String?,
-    ): String = "${query}_${searchType}_${alcoholicFilter ?: "null"}_${ingredientFilter ?: "null"}"
-
-    // Clear cache when needed
-    fun clearCache() {
-        cachedResults.clear()
+    // Clear search history
+    fun clearSearchHistory() {
+        searchHistory.clear()
+        view?.showHistory(searchHistory)
     }
 
-    // Apply filters to cocktail list
-    private fun applyFilters(cocktails: List<Cocktail>): List<Cocktail> {
-        var filteredCocktails = cocktails
-		
-        // Apply alcoholic filter
-        selectedAlcoholicFilter?.let { alcoholicFilter ->
-            filteredCocktails =
-                filteredCocktails.filter { cocktail ->
-                    cocktail.description.contains(alcoholicFilter, ignoreCase = true)
-                }
-        }
-		
-        // Apply ingredient filter
-        selectedIngredientFilter?.let { ingredientFilter ->
-            filteredCocktails =
-                filteredCocktails.filter { cocktail ->
-                    cocktail.ingredients.any { ingredient ->
-                        ingredient.contains(ingredientFilter, ignoreCase = true)
-                    }
-                }
-        }
-		
-        return filteredCocktails
+    // Get current query
+    fun getCurrentQuery(): String = currentQuery
+
+    // Get current filters
+    fun getCurrentFilters(): Pair<String?, String?> = Pair(selectedAlcoholicFilter, selectedIngredientFilter)
+
+    // Check if search is active
+    fun isSearchActive(): Boolean = currentQuery.isNotEmpty() || selectedAlcoholicFilter != null || selectedIngredientFilter != null
+
+    // Reset search state
+    fun resetSearch() {
+        currentQuery = ""
+        selectedAlcoholicFilter = null
+        selectedIngredientFilter = null
+        view?.clearSearchResults()
+        view?.showHistory(searchHistory)
     }
 }
 

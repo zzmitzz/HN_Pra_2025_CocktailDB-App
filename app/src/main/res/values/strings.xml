@@ -8,8 +8,8 @@
     <string name="title_profile">Profile</string>
     <string name="chill_with_a_cocktail">Chill with a cocktail</string>
     <string name="login">Login</string>
-    <string name="added_to_favorites">%1$s đã được thêm vào danh sách yêu thích!</string>
-    <string name="removed_from_favorites">%1$s đã được xóa khỏi danh sách yêu thích!</string>
+    <string name="added_to_favorites">%1$s has been added to favorites!</string>
+    <string name="removed_from_favorites">%1$s has been removed from favorites!</string>
     <string name="navigate_to_detail_screen">Navigate to detail screen for: %1$s</string>
     <string name="favorite_icon">Icon yêu thích</string>
 
@@ -62,6 +62,9 @@
     <string name="found_n_cocktails">Found %1$d cocktails</string>
     <string name="search_hint_name">Type to search cocktails (e.g., Margarita, Mojito)</string>
     <string name="search_hint_ingredient">Type to search by ingredient (e.g., vodka, gin, lime)</string>
+    <string name="search_type_label">Search Type:</string>
+    <string name="first_letter">First Letter</string>
+    <string name="search_hint_first_letter">Type first letter (e.g., A, B, C)</string>
     <string name="favorites_fragment_placeholder">Favorites Fragment - Triển khai sau</string>
     <string name="profile_fragment_placeholder">Profile Fragment - Triển khai sau</string>
     <string name="cocktail_name_placeholder">Cocktail name</string>
@@ -86,5 +89,7 @@
     <string name="description">Description</string>
     <string name="instructions_placeholder">"Instruction "</string>
     <string name="share_to_friends">Share</string>
+    <string name="search">Search</string>
+    <string name="enter_search_query">Please enter a search query</string>
 
 </resources>

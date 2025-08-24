@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.sun.cocktaildb.R
 import com.sun.cocktaildb.data.model.Category
 import com.sun.cocktaildb.utils.ImageLoader
+import com.sun.cocktaildb.utils.Constants
 
 class CategoryAdapter(
     private val onCategoryClickListener: (Category) -> Unit,
@@ -49,7 +50,7 @@ class CategoryAdapter(
             
             // Load category image using Android native ImageLoader utility
             val imageUrl = category.imageUrl
-            if (imageUrl.isNotEmpty() && imageUrl != "https://example.com/${category.name}.jpg") {
+                            if (imageUrl.isNotEmpty() && imageUrl != "${Constants.CATEGORY_IMAGE_BASE_URL}/${category.name}.jpg") {
                 ImageLoader.loadImage(ivCategory, imageUrl, R.drawable.cocktail_logo)
             } else {
                 ivCategory.setImageResource(R.drawable.cocktail_logo)

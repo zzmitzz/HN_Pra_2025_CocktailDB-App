@@ -5,6 +5,7 @@ import android.os.Looper
 import com.sun.cocktaildb.data.model.Category
 import com.sun.cocktaildb.data.model.Cocktail
 import com.sun.cocktaildb.data.repository.remote.CocktailRepository
+import com.sun.cocktaildb.utils.Constants
 import com.sun.cocktaildb.utils.FavoriteManager
 import com.sun.cocktaildb.utils.base.BasePresenter
 import java.util.concurrent.Executors
@@ -71,7 +72,7 @@ class CategoryDetailPresenter(
                 }
             } catch (e: Exception) {
                 mainHandler.post {
-                    view?.showError("Error updating favorite: ${e.message ?: "Unknown error"}")
+                    view?.showError("${Constants.ERROR_UPDATING_FAVORITE}: ${e.message ?: Constants.UNKNOWN_ERROR}")
                 }
             }
         }

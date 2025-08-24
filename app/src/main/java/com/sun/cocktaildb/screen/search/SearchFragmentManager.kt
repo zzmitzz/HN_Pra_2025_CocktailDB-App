@@ -1,6 +1,5 @@
 package com.sun.cocktaildb.screen.search
 
-import android.R
 import android.content.Context
 import android.view.View
 import android.widget.ArrayAdapter
@@ -98,102 +97,76 @@ class SearchFragmentManager(
     
     // Create adapter for alcoholic filter
     fun createAlcoholicFilterAdapter(): ArrayAdapter<String> {
-        val alcoholicFilters = listOf("Select Type", "Alcoholic", "Non alcoholic", "Optional alcohol")
-        return ArrayAdapter(context, R.layout.simple_spinner_item, alcoholicFilters).apply {
-            setDropDownViewResource(R.layout.simple_spinner_dropdown_item)
+        val alcoholicFilters = arrayOf("All", "Alcoholic", "Non_Alcoholic", "Optional_Alcohol")
+        val adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, alcoholicFilters)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        return adapter
+    }
+    
+    // Create listener for alcoholic filter
+    fun createAlcoholicFilterListener(): AdapterView.OnItemSelectedListener {
+        return object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val filter = when (position) {
+                    0 -> null
+                    1 -> "Alcoholic"
+                    2 -> "Non_Alcoholic"
+                    3 -> "Optional_Alcohol"
+                    else -> null
+                }
+                searchPresenter.setAlcoholicFilter(filter)
+            }
+            
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
     
     // Create adapter for ingredient filter
     fun createIngredientFilterAdapter(): ArrayAdapter<String> {
-        val popularIngredients = listOf(
-            "Select Ingredient", "Vodka", "Gin", "Rum", "Tequila", "Whiskey", "Brandy", "Triple sec",
-            "Lime juice", "Lemon juice", "Orange juice", "Cranberry juice",
-            "Sugar", "Grenadine", "Bitters", "Champagne", "Coffee", "Milk"
-        )
-        return ArrayAdapter(context, R.layout.simple_spinner_item, popularIngredients).apply {
-            setDropDownViewResource(R.layout.simple_spinner_dropdown_item)
-        }
+        val ingredientFilters = arrayOf("All", "Gin", "Vodka", "Rum", "Tequila", "Whiskey", "Brandy", "Liqueur")
+        val adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, ingredientFilters)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        return adapter
     }
     
-    // Listener for alcoholic filter
-    fun createAlcoholicFilterListener(): AdapterView.OnItemSelectedListener {
-        return object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (::searchPresenter.isInitialized && position > 0) {
-                    val filters = listOf("Select Type", "Alcoholic", "Non alcoholic", "Optional alcohol")
-                    searchPresenter.setAlcoholicFilter(filters[position])
-                } else if (::searchPresenter.isInitialized) {
-                    searchPresenter.setAlcoholicFilter(null)
-                }
-            }
-            
-            override fun onNothingSelected(parent: AdapterView<*>?) {
-                if (::searchPresenter.isInitialized) {
-                    searchPresenter.setAlcoholicFilter(null)
-                }
-            }
-        }
-    }
-    
-    // Listener for ingredient filter
+    // Create listener for ingredient filter
     fun createIngredientFilterListener(): AdapterView.OnItemSelectedListener {
+        val ingredientFilters = arrayOf("All", "Gin", "Vodka", "Rum", "Tequila", "Whiskey", "Brandy", "Liqueur")
         return object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (::searchPresenter.isInitialized && position > 0) {
-                    val ingredients = listOf(
-                        "Select Ingredient", "Vodka", "Gin", "Rum", "Tequila", "Whiskey", "Brandy", "Triple sec",
-                        "Lime juice", "Lemon juice", "Orange juice", "Cranberry juice",
-                        "Sugar", "Grenadine", "Bitters", "Champagne", "Coffee", "Milk"
-                    )
-                    searchPresenter.setIngredientFilter(ingredients[position])
-                } else if (::searchPresenter.isInitialized) {
-                    searchPresenter.setIngredientFilter(null)
+                val filter = when (position) {
+                    0 -> null
+                    else -> ingredientFilters[position]
                 }
+                searchPresenter.setIngredientFilter(filter)
             }
             
-            override fun onNothingSelected(parent: AdapterView<*>?) {
-                if (::searchPresenter.isInitialized) {
-                    searchPresenter.setIngredientFilter(null)
-                }
-            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
     
-    // Search cocktails
+    // Search functionality
     fun searchCocktails(query: String, searchType: SearchType) {
-        if (::searchPresenter.isInitialized) {
-            searchPresenter.searchCocktails(query, searchType)
-        }
+        searchPresenter.searchCocktails(query, searchType)
     }
     
-    // Clear search results
-    fun clearSearchResults() {
-        if (::searchPresenter.isInitialized) {
-            searchPresenter.clearSearchResults()
-        }
-    }
-    
-    // Set search type
     fun setSearchType(searchType: SearchType) {
-        if (::searchPresenter.isInitialized) {
-            searchPresenter.setSearchType(searchType)
-        }
+        searchPresenter.setSearchType(searchType)
     }
     
-    // Get current search type
     fun getCurrentSearchType(): SearchType {
-        return if (::searchPresenter.isInitialized) {
-            searchPresenter.getCurrentSearchType()
-        } else {
-            SearchType.NAME
-        }
+        return searchPresenter.getCurrentSearchType()
     }
     
-    // Remove query from search history
+    fun clearSearchResults() {
+        searchPresenter.clearSearchResults()
+    }
+    
+    fun addToHistory(query: String) {
+        searchPresenter.addToHistory(query)
+    }
+    
     fun removeFromHistory(query: String) {
-        if (::searchPresenter.isInitialized) {
-            searchPresenter.removeFromHistory(query)
-        }
+        searchPresenter.removeFromHistory(query)
     }
 }
